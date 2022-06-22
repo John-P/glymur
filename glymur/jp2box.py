@@ -20,6 +20,7 @@ import sys
 import textwrap
 from uuid import UUID
 import warnings
+import fractions
 
 # Third party library imports ...
 try:
@@ -2507,6 +2508,54 @@ def _parse_vendor_features(read_buffer, mask_length):
     return vendor_feature, vendor_mask
 
 
+def integer_fraction(value):
+    """Find an integer fraction and exponent representation of a number.
+
+    This is required for the CaptureResolution and DisplayResolution
+    boxes.
+
+    The result is of the form:
+    (numerator / denominator) * 10 ** exponent
+    where numerator and denominator are both 2-byte unsigned integers
+    and exponent is a 1-byte signed integer.
+
+    Note: This method is an approximation and may fail in some cases.
+
+    Parameters
+    ----------
+    value : float
+        Number to be converted.
+    """
+    frac = fractions.Fraction(value)
+    max_allowed_frac = fractions.Fraction(2**15-1)
+    min_allowed_frac = 1/max_allowed_frac
+    exponent = 0
+    # Shift the fraction into a normal range
+    while frac < min_allowed_frac:
+        exponent -= 1
+        frac *= 10
+    while frac > max_allowed_frac:
+        exponent += 1
+        frac /= 10
+    # Limit the denominator to 16 bits
+    frac = frac.limit_denominator(2**16-1)
+    # Adjust the exponent to make numerator fit in 16-bits
+    for _ in range(127):
+        if frac.numerator < 2**16-1:
+            break
+        exponent += 1
+        frac /= 10
+        frac = frac.limit_denominator(2**16-1)
+    # Give up if invalid at this point
+    if any([
+        frac.numerator > 2**16-1,
+        frac.denominator > 2**16-1,
+        exponent > 127,
+        exponent < -127,
+    ]):
+        raise ValueError("Could not represent resolution as an integer fraction.")
+    return frac.numerator, frac.denominator, exponent
+
 class ResolutionBox(Jp2kBox):
     """Container for Resolution superbox information.
 
@@ -2539,6 +2588,12 @@ class ResolutionBox(Jp2kBox):
     def __str__(self):
         msg = self._str_superbox()
         return msg
+
+    def write(self, fptr):
+        """Write a Resolution box to a file.
+        """
+        self._write_superbox(fptr, b'res ')
+
 
     @classmethod
     def parse(cls, fptr, offset, length):
@@ -2618,6 +2673,20 @@ class CaptureResolutionBox(Jp2kBox):
 
         text = '\n'.join([title, text])
         return text
+
+    def write(self, fptr):
+        """Write a Capture Resolution box to file.
+        """
+        self._write_validate()
+
+        rn1, rd1, re1 = integer_fraction(self.vertical_resolution)
+        rn2, rd2, re2 = integer_fraction(self.horizontal_resolution)
+
+        read_buffer = struct.pack(
+            '>HHHHbb',
+            rn1, rd1, rn2, rd2, re1, re2,
+        )
+        fptr.write(read_buffer)
 
     @classmethod
     def parse(cls, fptr, offset, length):
