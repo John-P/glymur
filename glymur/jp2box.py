@@ -2652,6 +2652,13 @@ class CaptureResolutionBox(Jp2kBox):
         self.length = length
         self.offset = offset
 
+    def _write_validate(self):
+        """Validate the box data before writing."""
+        if self.vertical_resolution <= 0:
+            raise ValueError("Vertical resolution must be positive.")
+        if self.horizontal_resolution <= 0:
+            raise ValueError("Horizontal resolution must be positive.")
+
     def __repr__(self):
         msg = (
             f"glymur.jp2box.CaptureResolutionBox"
