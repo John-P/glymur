@@ -2527,8 +2527,8 @@ def integer_fraction(value):
         Number to be converted.
     """
     frac = fractions.Fraction(value)
-    max_allowed_frac = fractions.Fraction(2**15-1)
-    min_allowed_frac = 1/max_allowed_frac
+    max_allowed_frac = fractions.Fraction(2**15 - 1)
+    min_allowed_frac = 1 / max_allowed_frac
     exponent = 0
     # Shift the fraction into a normal range
     while frac < min_allowed_frac:
@@ -2538,21 +2538,23 @@ def integer_fraction(value):
         exponent += 1
         frac /= 10
     # Limit the denominator to 16 bits
-    frac = frac.limit_denominator(2**16-1)
+    frac = frac.limit_denominator(2**16 - 1)
     # Adjust the exponent to make numerator fit in 16-bits
     for _ in range(127):
-        if frac.numerator < 2**16-1:
+        if frac.numerator < 2**16 - 1:
             break
         exponent += 1
         frac /= 10
-        frac = frac.limit_denominator(2**16-1)
+        frac = frac.limit_denominator(2**16 - 1)
     # Give up if invalid at this point
-    if any([
-        frac.numerator > 2**16-1,
-        frac.denominator > 2**16-1,
-        exponent > 127,
-        exponent < -127,
-    ]):
+    if any(
+        [
+            frac.numerator > 2**16 - 1,
+            frac.denominator > 2**16 - 1,
+            exponent > 127,
+            exponent < -127,
+        ]
+    ):
         raise ValueError("Could not represent resolution as an integer fraction.")
     return frac.numerator, frac.denominator, exponent
 
