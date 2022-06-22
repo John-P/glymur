@@ -464,6 +464,39 @@ class TestPaletteBox(fixtures.TestCommon):
             PaletteBox.parse(b, 8, 20)
 
 
+class TestCaptureResolutionBox(fixtures.TestCommon):
+    """Test suite for resc box instantiation."""
+
+    def test_write_read(self):
+        """Test that writing and reading back gives the same values."""
+        capture_resolution = (72, 72)
+        resc = glymur.jp2box.CaptureResolutionBox(*capture_resolution)
+        b = BytesIO()
+        resc.write(b)
+        b.seek(0)
+        resc_2 = glymur.jp2box.CaptureResolutionBox.parse(b, 0, 10)
+
+        self.assertEqual(resc.vertical_resolution, resc_2.vertical_resolution)
+        self.assertEqual(resc.horizontal_resolution, resc_2.horizontal_resolution)
+
+class TestResolutionBox(fixtures.TestCommon):
+    """Test suite for res box instantiation."""
+
+    def test_write_read_capture_resolution(self):
+        """Capture resolution should be (ear) equal after writing and parsing."""
+        resolution = (3.141592, 72)
+        resc = glymur.jp2box.CaptureResolutionBox(*resolution)
+        res = glymur.jp2box.ResolutionBox(box=[resc])
+        b = BytesIO()
+        res.write(b)
+        b.seek(8)
+        res_parsed = glymur.jp2box.ResolutionBox.parse(b, 0, 18+8)
+        resc_parsed = res_parsed.box[0]
+        self.assertEqual(type(resc_parsed), glymur.jp2box.CaptureResolutionBox)
+        self.assertAlmostEqual(resc.vertical_resolution, resc_parsed.vertical_resolution, delta=1e-9)
+        self.assertAlmostEqual(resc.horizontal_resolution, resc_parsed.horizontal_resolution, delta=1e-9)
+
+
 class TestAppend(fixtures.TestCommon):
     """Tests for append method."""
 
