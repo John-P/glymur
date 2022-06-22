@@ -2552,7 +2552,7 @@ def integer_fraction(value):
             frac.numerator > 2**16 - 1,
             frac.denominator > 2**16 - 1,
             exponent > 127,
-            exponent < -127,
+            exponent < -128,
         ]
     ):
         raise ValueError("Could not represent resolution as an integer fraction.")
@@ -2691,11 +2691,14 @@ class CaptureResolutionBox(Jp2kBox):
         rn1, rd1, re1 = integer_fraction(self.vertical_resolution)
         rn2, rd2, re2 = integer_fraction(self.horizontal_resolution)
 
-        read_buffer = struct.pack(
+        length = 8 + 10
+        write_buffer = struct.pack('>I4s', length, b'resc')
+        fptr.write(write_buffer)
+        write_buffer = struct.pack(
             '>HHHHbb',
             rn1, rd1, rn2, rd2, re1, re2,
         )
-        fptr.write(read_buffer)
+        fptr.write(write_buffer)
 
     @classmethod
     def parse(cls, fptr, offset, length):
